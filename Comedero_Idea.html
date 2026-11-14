@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulador de depósito cilíndrico óptimo · Cálculo Diferencial</title>
+<style>
+/* ====== Tokens de color (claro / oscuro) ====== */
+:root{
+  --bg:#eef2f7; --panel:#ffffff; --ink:#14233a; --mute:#5b6b82; --line:#d5dde9;
+  --blue:#12447a; --blue2:#2f6db5; --em:#0e9f6e; --warn:#c2410c; --food:#d9a441; --metal:#9fb3cc;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --bg:#0c1522; --panel:#142235; --ink:#e6edf7; --mute:#93a4bd; --line:#26384f;
+  --blue:#6aa7ee; --blue2:#8bbcf5; --em:#34d399; --warn:#fb923c; --food:#e0b050; --metal:#4b6584;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+h1,h2{font-family:Georgia,"Times New Roman",serif;margin:0;font-weight:700}
+h1{font-size:clamp(1.3rem,2.4vw,1.9rem)} h2{font-size:1.15rem;margin-bottom:.6rem}
+header{background:var(--blue);color:#fff;padding:1rem clamp(1rem,3vw,2rem);display:flex;gap:1rem;align-items:center;justify-content:space-between;flex-wrap:wrap}
+:root[data-theme="dark"] header{background:#0f2a4a}
+header p{margin:.2rem 0 0;opacity:.85;font-size:.9rem}
+button,input{font:inherit}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:.5rem .9rem;border-radius:8px;cursor:pointer}
+.btn:hover{border-color:var(--blue2)} .btn.pri{background:var(--em);border-color:var(--em);color:#04281c;font-weight:600}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--blue2);outline-offset:2px}
+main{max-width:1400px;margin:0 auto;padding:1rem clamp(.75rem,2vw,1.5rem) 2rem;display:grid;gap:1rem;grid-template-columns:repeat(12,1fr)}
+section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1rem 1.2rem}
+.c4{grid-column:span 4}.c8{grid-column:span 8}.c6{grid-column:span 6}.c12{grid-column:span 12}
+@media(max-width:1000px){.c4,.c8,.c6{grid-column:span 12}}
+label{display:block;font-size:.9rem;color:var(--mute);margin-top:.8rem}
+.row{display:flex;gap:.6rem;align-items:center}
+input[type=range]{flex:1;accent-color:var(--em)}
+input[type=number]{width:6.2rem;padding:.35rem .5rem;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+select{padding:.4rem .6rem;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.chip{display:inline-block;padding:.15rem .7rem;border-radius:99px;font-size:.85rem;font-weight:600;background:var(--bg);border:1px solid var(--line)}
+.chip.ok{background:var(--em);border-color:var(--em);color:#04281c}.chip.bad{color:var(--warn);border-color:var(--warn)}
+section{min-width:0}
+canvas{width:100%;max-width:100%;display:block;border-radius:8px;background:var(--bg)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem}
+.card{border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;background:var(--bg)}
+.card small{color:var(--mute);display:block;font-size:.78rem}
+.card b{font-size:1.3rem;font-variant-numeric:tabular-nums}.card b.em{color:var(--em)}
+.eq{font-family:Georgia,serif;font-style:italic;color:var(--blue);margin:.3rem 0}
+.steps{display:flex;gap:.4rem;flex-wrap:wrap;margin:.5rem 0}
+.dot{padding:.2rem .6rem;border-radius:99px;border:1px solid var(--line);font-size:.82rem;color:var(--mute);cursor:pointer;background:none}
+.dot.on{background:var(--blue);border-color:var(--blue);color:#fff}
+:root[data-theme="dark"] .dot.on{color:#06182c}
+.note{font-size:.85rem;color:var(--mute)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:.35rem .5rem;border-bottom:1px solid var(--line);text-align:right;font-weight:400}
+td:first-child,th:first-child{text-align:left} th{font-weight:700}
+.bar{height:26px;background:var(--bg);border-radius:6px;margin:.15rem 0 .6rem;overflow:hidden}
+.bar span{display:block;height:100%}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:700px){.cols{grid-template-columns:1fr}}
+#v3d{cursor:grab;touch-action:none}
+@media print{header button{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Depósito cilíndrico óptimo para comedero automático</h1>
+    <p>Cálculo Diferencial · Tecnológico Superior de Felipe Carrillo Puerto · Optimización de tipo maximización</p>
+  </div>
+  <button class="btn" id="theme" aria-label="Cambiar entre modo claro y oscuro">Modo oscuro</button>
+</header>
+
+<main>
+  <!-- ===== Panel de control ===== -->
+  <section class="c4" aria-labelledby="t-ctrl">
+    <h2 id="t-ctrl">Variables del diseño</h2>
+    <div class="eq">A = 2πr² + 2πrh &nbsp;⇒&nbsp; V(r) = (A/2)·r − πr³</div>
+    <label for="Ar">Área superficial disponible A (m²)</label>
+    <div class="row"><input type="range" id="Ar" min="0.5" max="3" step="0.01"><input type="number" id="An" min="0.5" max="3" step="0.01"></div>
+    <label for="rr">Radio r (cm)</label>
+    <div class="row"><input type="range" id="rr" min="5" max="100" step="0.1"><input type="number" id="rn" min="5" max="100" step="0.1"></div>
+    <div class="row" style="margin-top:1rem;flex-wrap:wrap">
+      <button class="btn pri" id="opt">Ir al punto óptimo</button>
+      <button class="btn" id="bad">Modo no optimizado (r = 15 cm)</button>
+      <span class="chip" id="state"></span>
+    </div>
+    <p class="note" id="msg"></p>
+    <p class="note">Densidad del alimento seco supuesta: 400 kg/m³ (30 kg ≈ 75 L). El cálculo de h sale de despejarla de la restricción de área.</p>
+  </section>
+
+  <!-- ===== Prototipo ===== -->
+  <section class="c8" aria-labelledby="t-proto">
+    <h2 id="t-proto">Prototipo en tiempo real (corte frontal)</h2>
+    <canvas id="proto" height="380" role="img" aria-label="Corte del depósito con nivel de alimento, visor y patas"></canvas>
+    <p class="note">Silueta punteada = diseño óptimo con la misma área A. Línea verde = nivel actual del alimento (cambia con el simulador de consumo).</p>
+  </section>
+
+  <!-- ===== Métricas ===== -->
+  <section class="c12" aria-labelledby="t-met">
+    <h2 id="t-met">Reporte y métricas</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <!-- ===== Vista 3D ===== -->
+  <section class="c6" aria-labelledby="t-3d">
+    <h2 id="t-3d">Vista 3D interactiva</h2>
+    <canvas id="v3d" height="340" role="img" aria-label="Modelo 3D giratorio del depósito"></canvas>
+    <div class="row" style="margin-top:.5rem"><button class="btn" id="rot">Pausar giro</button><span class="note">Arrastra con el mouse o el dedo para girar.</span></div>
+  </section>
+
+  <!-- ===== Consumo diario ===== -->
+  <section class="c6" aria-labelledby="t-cons">
+    <h2 id="t-cons">Simulador de consumo diario (12 perros)</h2>
+    <label for="dayr">Día de consumo (0 a 7)</label>
+    <div class="row"><input type="range" id="dayr" min="0" max="7" step="0.01" value="0"><button class="btn pri" id="play">Reproducir</button><button class="btn" id="reset">Reiniciar</button></div>
+    <canvas id="cons" height="200" role="img" aria-label="Alimento restante por día"></canvas>
+    <p id="consTxt"></p>
+  </section>
+
+  <!-- ===== Comparador ===== -->
+  <section class="c12" aria-labelledby="t-cmp">
+    <h2 id="t-cmp">Comparador: diseño con cálculo vs. diseño al azar</h2>
+    <div class="row" style="flex-wrap:wrap"><label for="ra" style="margin:0">Radio alternativo (cm)</label><input type="number" id="ra" value="15" min="5" step="0.5"><button class="btn" id="apl">Aplicar al prototipo</button></div>
+    <div id="cmp"></div>
+  </section>
+
+  <!-- ===== Gráfica ===== -->
+  <section class="c6" aria-labelledby="t-graf">
+    <h2 id="t-graf">Función de volumen y su derivada</h2>
+    <canvas id="graf" height="340" role="img" aria-label="Gráfica de V(r) con máximo en el punto crítico"></canvas>
+    <p class="eq" id="deriv"></p>
+  </section>
+
+  <!-- ===== Ensamblaje ===== -->
+  <section class="c6" aria-labelledby="t-asm">
+    <h2 id="t-asm">Guía de ensamblaje paso a paso</h2>
+    <div class="row" style="flex-wrap:wrap">
+      <label for="esc" style="margin:0">Escala de plantilla</label>
+      <select id="esc"><option value="1">1:1</option><option value="2">1:2</option><option value="3">1:3</option></select>
+    </div>
+    <div class="steps" id="dots"></div>
+    <canvas id="asm" height="300" role="img" aria-label="Plantilla de la pieza del paso actual"></canvas>
+    <p id="asmtxt" style="min-height:4.5em"></p>
+    <div class="row"><button class="btn" id="prev">Anterior</button><button class="btn pri" id="next">Siguiente</button></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+/* ============ Modelo matemático ============ */
+const PI = Math.PI, DENS = 400, MASA = 30, PERROS = 12, DIAS = 7;
+const LEG = 0.15;          // altura de las patas (m)
+const TAB = 1.5;           // pestañas de unión (cm)
+const rMax = A => Math.sqrt(A / (2 * PI));   // h = 0
+const rOpt = A => Math.sqrt(A / (6 * PI));   // V'(r) = 0
+const Vol  = (A, r) => A / 2 * r - PI * r ** 3;
+const dVol = (A, r) => A / 2 - 3 * PI * r * r;
+const Alt  = (A, r) => (A - 2 * PI * r * r) / (2 * PI * r);
+const f2 = (x, d = 2) => x.toFixed(d);
+
+const S = { A: 1.5, r: rOpt(1.5), step: 0, scale: 1, kg: MASA };
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* Canvas nítido en pantallas HiDPI */
+function prep(c) {
+  const dpr = window.devicePixelRatio || 1, w = c.clientWidth;
+  const h = c._h || (c._h = +c.getAttribute("height"));   // altura lógica, se lee una sola vez
+  c.style.height = h + "px";                              // evita que el canvas se estire solo
+  const W = Math.round(w * dpr), H = Math.round(h * dpr);
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }  // solo si cambió el tamaño
+  const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  return { g, w, h };
+}
+
+/* ============ Prototipo ============ */
+function cilindro(g, cx, base, r, h, s, o) {
+  const R = r * s, H = h * s, ry = R * 0.22;
+  g.save(); g.lineWidth = 2;
+  if (o.ghost) g.setLineDash([6, 5]);
+  g.strokeStyle = o.ghost ? css("--mute") : css("--blue");
+  if (!o.ghost) {
+    // contenido (corte transversal)
+    const fh = Math.min(o.fill, H);
+    g.fillStyle = css("--metal"); g.globalAlpha = .18;
+    g.fillRect(cx - R, base - H, 2 * R, H); g.globalAlpha = 1;
+    g.fillStyle = css("--food"); g.fillRect(cx - R, base - fh, 2 * R, fh);
+    g.beginPath(); g.ellipse(cx, base - fh, R, ry, 0, 0, 2 * PI); g.fill();
+    g.strokeStyle = css("--em"); g.lineWidth = 3; g.beginPath(); g.ellipse(cx, base - fh, R, ry, 0, 0, 2 * PI); g.stroke();
+    g.strokeStyle = css("--blue"); g.lineWidth = 2;
+  }
+  g.beginPath(); g.moveTo(cx - R, base - H); g.lineTo(cx - R, base);
+  g.ellipse(cx, base, R, ry, 0, PI, 0, true); g.lineTo(cx + R, base - H); g.stroke();
+  g.beginPath(); g.ellipse(cx, base - H, R, ry, 0, 0, 2 * PI); g.stroke();
+  g.restore();
+}
+function drawProto() {
+  const { g, w, h } = prep($("proto")), A = S.A, r = S.r, hh = Alt(A, r), ro = rOpt(A), ho = 2 * ro;
+  const top = 34, bot = 30, legPx = LEG;
+  const maxH = Math.max(hh, ho) + legPx, maxR = Math.max(r, ro);
+  const s = Math.min((h - top - bot) / maxH, (w * 0.42) / maxR);
+  const cx = w * 0.42, ground = h - bot, base = ground - legPx * s;
+  g.strokeStyle = css("--line"); g.lineWidth = 2; g.beginPath(); g.moveTo(10, ground); g.lineTo(w - 10, ground); g.stroke();
+  // patas
+  g.fillStyle = css("--metal");
+  [-0.8, -0.3, 0.3, 0.8].forEach(k => g.fillRect(cx + k * r * s - 4, base, 8, legPx * s));
+  // salida inferior
+  g.fillStyle = css("--blue"); g.fillRect(cx - 10, base, 20, legPx * s * .55);
+  g.fillStyle = css("--mute"); g.font = "12px Segoe UI"; g.fillText("salida", cx + 14, base + legPx * s * .5);
+  const fillM = Math.min(S.kg / DENS / (PI * r * r), hh), fillH = fillM * s;
+  cilindro(g, cx, base, ro, ho, s, { ghost: true });
+  cilindro(g, cx, base, r, hh, s, { fill: fillH });
+  // visor de nivel (tubo transparente a la derecha)
+  const vx = cx + r * s + 16, v0 = base - 0.04 * hh * s, v1 = base - 0.96 * hh * s;
+  g.strokeStyle = css("--blue"); g.lineWidth = 2; g.strokeRect(vx, v1, 14, v0 - v1);
+  g.fillStyle = css("--food"); g.fillRect(vx + 1, base - fillH, 12, v0 - (base - fillH));
+  g.strokeStyle = css("--mute"); g.lineWidth = 1; g.beginPath(); g.moveTo(vx - 6, v0); g.lineTo(vx, v0); g.moveTo(vx - 6, v1); g.lineTo(vx, v1); g.stroke();
+  g.fillStyle = css("--ink"); g.fillText("visor", vx + 20, v1 + 12);
+  g.fillStyle = css("--em"); g.fillText(f2(S.kg, 1) + " kg · " + f2(fillM * 100, 1) + " cm", vx + 20, base - fillH + 4);
+  // cotas
+  g.fillStyle = css("--ink"); g.font = "13px Segoe UI";
+  g.fillText("Ø " + f2(2 * r * 100, 1) + " cm", cx - 34, base - hh * s - r * s * .22 - 10);
+  g.save(); g.translate(cx - r * s - 14, base - hh * s / 2); g.rotate(-PI / 2); g.textAlign = "center";
+  g.fillText("h = " + f2(hh * 100, 1) + " cm", 0, 0); g.restore();
+}
+
+/* ============ Gráfica V(r) ============ */
+function drawGraf() {
+  const { g, w, h } = prep($("graf")), A = S.A, xm = rMax(A), ro = rOpt(A), vm = Vol(A, ro) * 1.18;
+  const L = 56, R = 14, T = 14, B = 38, X = r => L + r / xm * (w - L - R), Y = v => h - B - v / vm * (h - T - B);
+  g.font = "12px Segoe UI"; g.lineWidth = 1;
+  for (let i = 0; i <= 5; i++) {
+    const v = vm * i / 5, r = xm * i / 5;
+    g.strokeStyle = css("--line"); g.beginPath(); g.moveTo(L, Y(v)); g.lineTo(w - R, Y(v)); g.stroke();
+    g.fillStyle = css("--mute"); g.textAlign = "right"; g.fillText(f2(v, 3), L - 6, Y(v) + 4);
+    g.textAlign = "center"; g.fillText(f2(r, 2), X(r), h - B + 16);
+  }
+  g.fillStyle = css("--ink"); g.fillText("r (m)", w / 2, h - 6); g.save(); g.translate(12, h / 2); g.rotate(-PI / 2); g.fillText("V (m³)", 0, 0); g.restore();
+  // curva
+  g.strokeStyle = css("--blue"); g.lineWidth = 3; g.beginPath();
+  for (let i = 0; i <= 200; i++) { const r = xm * i / 200; i ? g.lineTo(X(r), Y(Vol(A, r))) : g.moveTo(X(r), Y(0)); }
+  g.stroke();
+  // tangente en el punto actual
+  const m = dVol(A, S.r), d = xm * 0.12;
+  g.strokeStyle = css("--warn"); g.lineWidth = 2; g.setLineDash([5, 4]); g.beginPath();
+  g.moveTo(X(S.r - d), Y(Vol(A, S.r) - m * d)); g.lineTo(X(S.r + d), Y(Vol(A, S.r) + m * d)); g.stroke(); g.setLineDash([]);
+  // puntos
+  const pt = (r, col, lab, dx) => { g.fillStyle = col; g.beginPath(); g.arc(X(r), Y(Vol(A, r)), 6, 0, 2 * PI); g.fill(); g.fillStyle = css("--ink"); g.textAlign = "left"; g.fillText(lab, X(r) + dx, Y(Vol(A, r)) - 10); };
+  pt(ro, css("--em"), "máx: r=" + f2(ro, 4) + "  V=" + f2(Vol(A, ro), 4), -70);
+  pt(S.r, css("--warn"), "actual", 8);
+  $("deriv").innerHTML = "V′(r) = " + f2(A / 2, 2) + " − 3πr² · V′(" + f2(S.r, 4) + ") = " + f2(m, 4) +
+    (Math.abs(m) < 0.002 ? " ≈ 0 (punto crítico, V″ &lt; 0 ⇒ máximo)" : m > 0 ? " &gt; 0 (V crece: aún no es el máximo)" : " &lt; 0 (V decrece: se pasó del máximo)");
+}
+
+/* ============ Ensamblaje ============ */
+const PASOS = [
+  { n: "Materiales", t: () => "Tome lámina o cartón con al menos " + f2(S.A, 2) + " m² útiles. Se recortarán tres piezas: tapa, base con orificio de salida y pared lateral. Las pestañas de " + TAB + " cm son material adicional de unión." },
+  { n: "Tapa superior", t: () => "Trace un círculo de radio " + f2(S.r * 100, 2) + " cm. Es la tapa; no lleva orificio." },
+  { n: "Base inferior", t: () => "Trace otro círculo de radio " + f2(S.r * 100, 2) + " cm y recorte al centro el orificio de salida (Ø 5 cm) para el dosificador." },
+  { n: "Pared lateral", t: () => "Recorte un rectángulo de " + f2(2 * PI * S.r * 100, 1) + " cm (perímetro) × " + f2(Alt(S.A, S.r) * 100, 1) + " cm (altura). Deje pestañas de +" + TAB + " cm en un borde vertical y en los bordes superior e inferior." },
+  { n: "Ensamble", t: () => "Enrolle la pared, una la pestaña vertical, pegue o remache tapa y base por sus pestañas, coloque el visor transparente al costado y fije cuatro patas de " + LEG * 100 + " cm." }
+];
+function pieza(g, kind, w, h, e) {
+  // e = escala de plantilla (1, 2, 3). Medidas impresas = reales / e.
+  const r = S.r * 100 / e, H = Alt(S.A, S.r) * 100 / e, P = 2 * PI * r, t = TAB / e;
+  const dims = kind === "wall" ? [P + t, H + 2 * t] : [2 * r, 2 * r];
+  const k = Math.min((w - 90) / dims[0], (h - 70) / dims[1]), ox = (w - dims[0] * k) / 2, oy = (h - dims[1] * k) / 2;
+  g.lineWidth = 2; g.strokeStyle = css("--blue"); g.fillStyle = css("--bg"); g.font = "13px Segoe UI"; g.textAlign = "center";
+  if (kind === "wall") {
+    g.setLineDash([5, 4]); g.strokeRect(ox, oy, dims[0] * k, dims[1] * k); g.setLineDash([]);   // contorno con pestañas
+    g.fillStyle = css("--em"); g.globalAlpha = .18; g.fillRect(ox, oy + t * k, P * k, H * k); g.globalAlpha = 1;
+    g.strokeRect(ox, oy + t * k, P * k, H * k);
+    g.fillStyle = css("--ink");
+    g.fillText(f2(P + t) + " cm (incl. pestaña)", w / 2, oy + dims[1] * k + 20);
+    g.save(); g.translate(ox - 12, h / 2); g.rotate(-PI / 2); g.fillText(f2(H + 2 * t) + " cm", 0, 0); g.restore();
+  } else {
+    g.fillStyle = css("--em"); g.globalAlpha = .18; g.beginPath(); g.arc(w / 2, h / 2, r * k, 0, 2 * PI); g.fill(); g.globalAlpha = 1;
+    g.beginPath(); g.arc(w / 2, h / 2, r * k, 0, 2 * PI); g.stroke();
+    if (kind === "base") { g.fillStyle = css("--panel"); g.beginPath(); g.arc(w / 2, h / 2, Math.max(2.5 / e * k, 3), 0, 2 * PI); g.fill(); g.stroke(); }
+    g.fillStyle = css("--ink"); g.fillText("Ø " + f2(2 * r) + " cm", w / 2, h / 2 + r * k + 20);
+  }
+  g.fillStyle = css("--mute"); g.fillText("Plantilla 1:" + e + " · vista ajustada a la pantalla", w / 2, 16);
+}
+function drawAsm() {
+  const { g, w, h } = prep($("asm")), p = S.step, e = S.scale;
+  if (p === 0) {
+    // vista general de las tres piezas
+    g.fillStyle = css("--mute"); g.font = "13px Segoe UI"; g.textAlign = "center";
+    const cw = w / 3; ["Tapa", "Base", "Pared"].forEach((n, i) => {
+      const k = Math.min(cw - 30, h - 90) / (2 * S.r * 100) * (i === 2 ? 0 : 1);
+      g.strokeStyle = css("--blue"); g.lineWidth = 2;
+      if (i < 2) { g.beginPath(); g.arc(cw * i + cw / 2, h / 2, S.r * 100 * k, 0, 2 * PI); g.stroke(); if (i === 1) { g.beginPath(); g.arc(cw * i + cw / 2, h / 2, 5, 0, 2 * PI); g.stroke(); } }
+      else { const rw = (cw - 30), rh = rw * Alt(S.A, S.r) / (2 * PI * S.r); g.strokeRect(cw * i + 15, h / 2 - rh / 2, rw, Math.min(rh, h - 90)); }
+      g.fillText(n, cw * i + cw / 2, h - 20);
+    });
+  } else if (p < 4) pieza(g, ["", "lid", "base", "wall"][p], w, h, e);
+  else {
+    // ensamble final: miniatura del cilindro
+    const hh = Alt(S.A, S.r), s = Math.min((h - 70) / (hh + LEG), (w * .3) / S.r);
+    cilindro(g, w / 2, h - 24 - LEG * s, S.r, hh, s, { fill: Math.min(.075 / (PI * S.r * S.r), hh) * s });
+    g.fillStyle = css("--metal"); [-.8, .8].forEach(k => g.fillRect(w / 2 + k * S.r * s - 3, h - 24 - LEG * s, 6, LEG * s));
+  }
+  $("asmtxt").textContent = PASOS[p].t();
+  $("dots").innerHTML = PASOS.map((x, i) => '<button class="dot' + (i === p ? " on" : "") + '" data-i="' + i + '">' + (i + 1) + ". " + x.n + "</button>").join("");
+  $("prev").disabled = p === 0; $("next").disabled = p === PASOS.length - 1;
+}
+
+/* ============ Métricas ============ */
+function metricas() {
+  const A = S.A, r = S.r, h = Alt(A, r), V = Vol(A, r), Vo = Vol(A, rOpt(A));
+  const used = 2 * PI * r * r + 2 * PI * r * h, fillH = 0.075 / (PI * r * r), cap = V * DENS;
+  const dia = MASA / DIAS, porPerro = dia / PERROS * 1000;
+  const items = [
+    ["Área empleada", f2(used, 3) + " m²", 1], ["Volumen", f2(V * 1000, 2) + " L", 1], ["Radio / altura", f2(r * 100, 2) + " / " + f2(h * 100, 2) + " cm", 0],
+    ["Relación h / r", f2(h / r, 3), 0], ["% del volumen óptimo", f2(V / Vo * 100, 1) + " %", 1],
+    ["Nivel de 30 kg", fillH > h ? "excede" : f2(fillH * 100, 1) + " cm (" + f2(fillH / h * 100, 1) + " %)", 0],
+    ["Altura del visor", f2(h * 0.92 * 100, 1) + " cm", 0], ["Capacidad total", f2(cap, 1) + " kg", 0],
+    ["Consumo de 12 perros", f2(dia, 2) + " kg/día", 0], ["Por perro", f2(porPerro, 0) + " g/día", 0],
+    ["Autonomía a tanque lleno", f2(cap / dia, 1) + " días", 1]
+  ];
+  $("cards").innerHTML = items.map(i => '<div class="card"><small>' + i[0] + "</small><b" + (i[2] ? ' class="em"' : "") + ">" + i[1] + "</b></div>").join("");
+  const ok = Math.abs(r - rOpt(A)) < 0.0006;
+  $("state").className = "chip " + (ok ? "ok" : "bad"); $("state").textContent = ok ? "Óptimo" : "No óptimo: −" + f2((1 - V / Vo) * 100, 1) + " % de volumen";
+  $("msg").textContent = fillH > h ? "Con este radio el depósito no alcanza a contener los 30 kg." : "";
+}
+
+/* ============ Vista 3D (proyección propia, sin librerías) ============ */
+const V3 = { ry: 0.6, rx: 0.4, auto: !matchMedia("(prefers-reduced-motion: reduce)").matches, drag: null };
+function draw3D() {
+  const { g, w, h } = prep($("v3d")), r = S.r, hh = Alt(S.A, S.r), N = 48;
+  const span = hh + LEG + r, sc = Math.min((h - 40) / span, w * 0.36 / r), D = span * 4, ym = (hh - LEG) / 2;
+  const cr = Math.cos(V3.ry), sr = Math.sin(V3.ry), cx = Math.cos(V3.rx), sx = Math.sin(V3.rx);
+  // giro en Y, inclinación en X y perspectiva leve
+  const P = (x, y, z) => {
+    const x1 = x * cr + z * sr, z1 = -x * sr + z * cr, y1 = y - ym, y2 = y1 * cx + z1 * sx, z2 = -y1 * sx + z1 * cx, p = D / (D + z2);
+    return [w / 2 + x1 * sc * p, h / 2 - y2 * sc * p, z2];
+  };
+  const ring = (y, rad) => Array.from({ length: N }, (_, i) => P(rad * Math.cos(2 * PI * i / N), y, rad * Math.sin(2 * PI * i / N)));
+  const poly = (pts, fill, a, stroke) => {
+    g.beginPath(); pts.forEach((p, i) => i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1])); g.closePath();
+    if (fill) { g.globalAlpha = a; g.fillStyle = fill; g.fill(); g.globalAlpha = 1; }
+    if (stroke) { g.strokeStyle = stroke; g.stroke(); }
+  };
+  const side = (rad, y0, y1, col, a) => {
+    const q = [];
+    for (let i = 0; i < N; i++) {
+      const a0 = 2 * PI * i / N, a1 = 2 * PI * (i + 1) / N;
+      const pts = [P(rad * Math.cos(a0), y0, rad * Math.sin(a0)), P(rad * Math.cos(a1), y0, rad * Math.sin(a1)), P(rad * Math.cos(a1), y1, rad * Math.sin(a1)), P(rad * Math.cos(a0), y1, rad * Math.sin(a0))];
+      q.push({ pts, z: (pts[0][2] + pts[2][2]) / 2, l: .65 + .35 * Math.cos(a0 + V3.ry) });
+    }
+    q.sort((u, v) => v.z - u.z).forEach(k => poly(k.pts, col, a * k.l));
+  };
+  g.lineWidth = 1; g.lineCap = "round";
+  // patas y salida
+  g.strokeStyle = css("--metal"); g.lineWidth = 6;
+  [0.25, 0.75, 1.25, 1.75].forEach(k => { const x = .8 * r * Math.cos(k * PI), z = .8 * r * Math.sin(k * PI), a = P(x, 0, z), b = P(x, -LEG, z); g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); });
+  const o0 = P(0, 0, 0), o1 = P(0, -LEG * .6, 0); g.strokeStyle = css("--blue"); g.lineWidth = 12; g.beginPath(); g.moveTo(o0[0], o0[1]); g.lineTo(o1[0], o1[1]); g.stroke();
+  g.lineWidth = 1.5;
+  poly(ring(0, r), css("--metal"), .5, css("--blue"));
+  // alimento (cilindro interior) y su superficie
+  const fm = Math.min(S.kg / DENS / (PI * r * r), hh);
+  if (fm > 0.001) { side(r * .985, 0, fm, css("--food"), .9); poly(ring(fm, r * .985), css("--food"), .95, css("--em")); }
+  // pared translúcida, tapa y visor
+  side(r, 0, hh, css("--metal"), .28);
+  poly(ring(hh, r), css("--metal"), .15, css("--blue"));
+  const v0 = P(r * 1.05, hh * .04, 0), v1 = P(r * 1.05, hh * .96, 0), vf = P(r * 1.05, Math.max(hh * .04, fm), 0);
+  g.lineWidth = 11; g.strokeStyle = css("--blue"); g.beginPath(); g.moveTo(v0[0], v0[1]); g.lineTo(v1[0], v1[1]); g.stroke();
+  g.lineWidth = 7; g.strokeStyle = css("--bg"); g.beginPath(); g.moveTo(v0[0], v0[1]); g.lineTo(v1[0], v1[1]); g.stroke();
+  g.strokeStyle = css("--food"); g.beginPath(); g.moveTo(v0[0], v0[1]); g.lineTo(vf[0], vf[1]); g.stroke();
+  g.fillStyle = css("--mute"); g.font = "12px Segoe UI"; g.textAlign = "left";
+  g.fillText("Ø " + f2(2 * r * 100, 1) + " cm · h " + f2(hh * 100, 1) + " cm · " + f2(S.kg, 1) + " kg", 10, h - 10);
+}
+let v3vis = true;
+new IntersectionObserver(e => { v3vis = e[0].isIntersecting; }).observe($("v3d"));
+function tick() {
+  if (V3.auto && !V3.drag && v3vis && !document.hidden) { V3.ry += 0.008; draw3D(); }
+  requestAnimationFrame(tick);
+}
+
+/* ============ Consumo diario ============ */
+const CONS = { day: 0, timer: null };
+function drawCons() {
+  const { g, w, h } = prep($("cons")), bw = w / (DIAS + 1);
+  g.font = "12px Segoe UI"; g.textAlign = "center";
+  for (let i = 0; i <= DIAS; i++) {
+    const kg = MASA * (1 - i / DIAS), bh = kg / MASA * (h - 52);
+    g.fillStyle = i <= CONS.day + 1e-9 ? css("--food") : css("--line"); g.fillRect(i * bw + 6, h - 24 - bh, bw - 12, bh);
+    g.fillStyle = css("--ink"); g.fillText(f2(kg, 1), i * bw + bw / 2, h - 28 - bh); g.fillText("Día " + i, i * bw + bw / 2, h - 8);
+  }
+  const dia = MASA / DIAS, fm = S.kg / DENS / (PI * S.r * S.r);
+  $("consTxt").textContent = "Día " + f2(CONS.day, 2) + " de 7 · quedan " + f2(S.kg, 2) + " kg (" + f2(S.kg / MASA * 100, 0) + " %) · nivel " + f2(Math.min(fm, Alt(S.A, S.r)) * 100, 1) + " cm · consumo " + f2(dia, 2) + " kg/día";
+}
+function setDay(d) { CONS.day = Math.min(DIAS, Math.max(0, d)); S.kg = MASA * (1 - CONS.day / DIAS); $("dayr").value = CONS.day; update("c"); }
+function stopPlay() { clearInterval(CONS.timer); CONS.timer = null; $("play").textContent = "Reproducir"; }
+
+/* ============ Comparador ============ */
+function comparar() {
+  const A = S.A, ro = rOpt(A), ra = Math.min(Math.max((+$("ra").value || 15) / 100, .05), rMax(A) * .999);
+  const mk = r => ({ r, h: Alt(A, r), V: Vol(A, r) * 1000 }), o = mk(ro), a = mk(ra), lost = o.V - a.V, dia = MASA / DIAS;
+  const row = (n, x, y) => "<tr><td>" + n + "</td><td>" + x + "</td><td>" + y + "</td></tr>";
+  const bar = (l, v, c) => '<div class="note">' + l + " · " + f2(v, 2) + ' L</div><div class="bar"><span style="width:' + Math.max(0, v / o.V * 100) + "%;background:" + c + '"></span></div>';
+  $("cmp").innerHTML = '<div class="cols"><div><table><tr><th></th><th>Óptimo</th><th>Alternativo</th></tr>' +
+    row("Radio (cm)", f2(o.r * 100, 2), f2(a.r * 100, 2)) + row("Altura (cm)", f2(o.h * 100, 2), f2(a.h * 100, 2)) +
+    row("Volumen (L)", f2(o.V, 2), f2(a.V, 2)) + row("Capacidad (kg)", f2(o.V * DENS / 1000, 1), f2(a.V * DENS / 1000, 1)) +
+    row("Autonomía (días)", f2(o.V * DENS / 1000 / dia, 1), f2(a.V * DENS / 1000 / dia, 1)) + "</table></div><div>" +
+    bar("Diseño óptimo (cálculo diferencial)", o.V, "var(--em)") + bar("Diseño alternativo, r = " + f2(a.r * 100, 1) + " cm", a.V, "var(--warn)") +
+    "<p><b>" + (lost > 0.005 ? "Se pierden " + f2(lost, 2) + " L (" + f2(lost / o.V * 100, 1) + " %) " : "Es el diseño óptimo: no hay pérdida ") +
+    "con el mismo material (A = " + f2(A, 2) + " m²).</b></p></div></div>";
+}
+
+/* ============ Controles ============ */
+function sync(from) {
+  const ar = $("Ar"), rr = $("rr"), rm = Math.floor(rMax(S.A) * 1000) / 10;
+  rr.max = rn.max = rm; S.r = Math.min(Math.max(S.r, 0.05), rm / 100);
+  if (from !== "A") { ar.value = An.value = S.A; }
+  rr.value = rn.value = f2(S.r * 100, 1);
+  if (from === "A") An.value = f2(S.A, 2);
+}
+function update(from) { sync(from); metricas(); drawProto(); drawGraf(); drawAsm(); draw3D(); drawCons(); comparar(); }
+const An = $("An"), rn = $("rn");
+$("Ar").oninput = e => { S.A = +e.target.value; An.value = S.A; update("A"); };
+An.onchange = e => { S.A = Math.min(3, Math.max(.5, +e.target.value || 1.5)); $("Ar").value = S.A; update("A"); };
+$("rr").oninput = e => { S.r = +e.target.value / 100; update("r"); };
+rn.onchange = e => { S.r = +e.target.value / 100; update("r"); };
+$("opt").onclick = () => { S.r = rOpt(S.A); update(); };
+$("bad").onclick = () => { S.A = 1.5; S.r = 0.15; $("ra").value = 15; update(); };
+$("esc").onchange = e => { S.scale = +e.target.value; drawAsm(); };
+$("prev").onclick = () => { S.step = Math.max(0, S.step - 1); drawAsm(); };
+$("next").onclick = () => { S.step = Math.min(PASOS.length - 1, S.step + 1); drawAsm(); };
+$("dots").onclick = e => { if (e.target.dataset.i) { S.step = +e.target.dataset.i; drawAsm(); } };
+$("theme").onclick = () => {
+  const d = document.documentElement, dark = d.dataset.theme !== "dark";
+  d.dataset.theme = dark ? "dark" : "light"; $("theme").textContent = dark ? "Modo claro" : "Modo oscuro"; update();
+};
+const c3 = $("v3d");
+c3.onpointerdown = e => { V3.drag = [e.clientX, e.clientY]; c3.setPointerCapture(e.pointerId); };
+c3.onpointermove = e => {
+  if (!V3.drag) return;
+  V3.ry += (e.clientX - V3.drag[0]) * .01; V3.rx = Math.min(1.2, Math.max(-.2, V3.rx + (e.clientY - V3.drag[1]) * .01));
+  V3.drag = [e.clientX, e.clientY]; draw3D();
+};
+c3.onpointerup = c3.onpointercancel = () => { V3.drag = null; };
+$("rot").onclick = () => { V3.auto = !V3.auto; $("rot").textContent = V3.auto ? "Pausar giro" : "Reanudar giro"; };
+if (!V3.auto) $("rot").textContent = "Reanudar giro";
+$("dayr").oninput = e => { stopPlay(); setDay(+e.target.value); };
+$("reset").onclick = () => { stopPlay(); setDay(0); };
+$("play").onclick = () => {
+  if (CONS.timer) return stopPlay();
+  if (CONS.day >= DIAS) setDay(0);
+  $("play").textContent = "Pausar";
+  CONS.timer = setInterval(() => { setDay(CONS.day + 0.04); if (CONS.day >= DIAS) stopPlay(); }, 40);
+};
+$("ra").oninput = comparar;
+$("apl").onclick = () => { S.r = Math.min(Math.max((+$("ra").value || 15) / 100, .05), rMax(S.A) * .999); update(); };
+if (matchMedia("(prefers-color-scheme: dark)").matches) { document.documentElement.dataset.theme = "dark"; $("theme").textContent = "Modo claro"; }
+let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => update(), 120); });
+update();
+tick();
+</script>
+</body>
+</html>
